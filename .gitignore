@@ -21,8 +21,6 @@ env/
 
 # Docker-related ignores
 docker-compose.override.yml
-docker-compose.yml
-Dockerfile
 .dockerignore
 *~backup
 
