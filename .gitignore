@@ -1,0 +1,59 @@
+# Python-specific ignores
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+*.log
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# VSCode and IDEs
+.vscode/
+.idea/
+*.swp
+
+# Docker-related ignores
+docker-compose.override.yml
+docker-compose.yml
+Dockerfile
+.dockerignore
+*~backup
+
+# Environment variables and sensitive files
+.env
+*.env
+
+# Byte-compiled files and caches
+*.db
+*.log
+*.pot
+
+# Mypy type checker cache
+.mypy_cache/
+
+# Pytest
+.pytest_cache/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# FastAPI-specific
+# Static files and media (if applicable)
+static/
+media/
+
+# Database-related
+*.db
+postgres_data/
+
+# System files
+.DS_Store
+*.bak
+*.tmp
