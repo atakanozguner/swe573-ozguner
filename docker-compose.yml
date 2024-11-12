@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: swe573_database
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  web:
+    build: .
+    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@db/swe573_database"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5000:5000"
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  postgres_data:
