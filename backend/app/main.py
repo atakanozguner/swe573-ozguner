@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from . import models, schemas, utils
 import os
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+
 
 load_dotenv()
 
@@ -24,6 +26,16 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "*"
+    ],  # You can restrict this to ["http://localhost:5000"] for more security
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
+)
 
 
 # Dependency for getting the database session
