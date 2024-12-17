@@ -1,13 +1,19 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    Boolean,
+    Float,
+    JSON,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy import DateTime
 
-
-# Database setup
 try:
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
@@ -22,7 +28,6 @@ except ValueError as e:
     raise SystemExit(e)
 
 
-# Define User model
 class User(Base):
     __tablename__ = "users"
 
@@ -38,16 +43,19 @@ class Post(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     image_url = Column(String, nullable=True)
-    description = Column(String, nullable=True)
+    description = Column(String, nullable=False)
     material = Column(String, nullable=True)
-    size = Column(String, nullable=True)
+    length = Column(Float, nullable=True)
+    width = Column(Float, nullable=True)
+    height = Column(Float, nullable=True)
     color = Column(String, nullable=True)
     shape = Column(String, nullable=True)
-    weight = Column(String, nullable=True)
+    weight = Column(Float, nullable=True)
     location = Column(String, nullable=True)
     smell = Column(String, nullable=True)
     taste = Column(String, nullable=True)
     origin = Column(String, nullable=True)
+    tags = Column(JSON, nullable=True)  # Store tags as a JSON list
 
     owner_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -82,10 +90,8 @@ class CommentVote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_upvote = Column(Boolean, nullable=False)
 
-    # Relationships if needed
     comment = relationship("Comment", back_populates="votes")
     user = relationship("User")
 
 
-# Create the tables in the database if they don't exist
 Base.metadata.create_all(bind=engine)

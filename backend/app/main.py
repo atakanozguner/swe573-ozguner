@@ -13,6 +13,7 @@ from fastapi.security import OAuth2
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import logging
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
@@ -70,6 +71,27 @@ app.state.ALGORITHM = ALGORITHM
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the SWE573 - root endpoint"}
+
+
+@app.get("/tags/search", response_model=list[dict])
+def search_tags(query: str):
+    response = requests.get(
+        "https://www.wikidata.org/w/api.php",
+        params={
+            "action": "wbsearchentities",
+            "language": "en",
+            "format": "json",
+            "search": query,
+        },
+    )
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Error fetching tags from Wikidata")
+
+    data = response.json()
+    return [
+        {"label": item["label"], "description": item.get("description", "")}
+        for item in data.get("search", [])
+    ]
 
 
 @app.post("/register", response_model=schemas.UserOut)

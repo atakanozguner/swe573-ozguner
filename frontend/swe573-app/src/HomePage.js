@@ -9,7 +9,10 @@ function HomePage() {
   return (
     <div className="container mt-5 text-center">
       {username ? (
+        <>
         <h1>Welcome, {username}!</h1>
+        <p>Browse existing posts <Link to="/posts">Posts</Link></p>
+        </>
       ) : (
         <div>
           <h1>Welcome to SWE573 App</h1>

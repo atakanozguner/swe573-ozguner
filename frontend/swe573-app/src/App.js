@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HomePage from './HomePage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
+import PostsPage from './PostsPage';
+import CreatePostPage from './CreatePostPage';
+import PostDetailPage from './PostDetailPage';
+
 import { UserContext } from './UserContext';
 
 function App() {
@@ -67,6 +71,9 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         {!username && <Route path="/register" element={<RegisterPage />} />}
+        <Route path="/posts" element={<PostsPage />} />
+        <Route path="/posts/new" element={<CreatePostPage />} />
+        <Route path="/posts/:id" element={<PostDetailPage />} />
       </Routes>
     </Router>
   );

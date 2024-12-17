@@ -1,14 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 
 
-# Schema for creating a new user (registration)
 class UserCreate(BaseModel):
     username: str
     password: str
 
 
-# Schema for returning user data
 class UserOut(BaseModel):
     id: int
     username: str
@@ -22,14 +20,23 @@ class PostBase(BaseModel):
     image_url: Optional[str] = None
     description: Optional[str] = None
     material: Optional[str] = None
-    size: Optional[str] = None
+    length: Optional[float] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
     color: Optional[str] = None
     shape: Optional[str] = None
-    weight: Optional[str] = None
+    weight: Optional[float] = None
     location: Optional[str] = None
     smell: Optional[str] = None
     taste: Optional[str] = None
     origin: Optional[str] = None
+    tags: Optional[List[str]] = []  # Add tags
+
+    @field_validator("length", "width", "height", "weight")
+    def check_positive(cls, v, field):
+        if v is not None and v < 0:
+            raise ValueError(f"{field.name} must be greater than 0")
+        return v
 
 
 class PostCreate(PostBase):
@@ -44,6 +51,14 @@ class Post(PostBase):
         from_attributes = True
 
 
+class CommentUser(BaseModel):
+    id: int
+    username: str
+
+    class Config:
+        from_attributes = True
+
+
 class CommentBase(BaseModel):
     content: str
 
@@ -52,10 +67,12 @@ class CommentCreate(CommentBase):
     pass
 
 
-class Comment(CommentBase):
+class CommentWithScore(CommentBase):
     id: int
     post_id: int
     user_id: int
+    score: int
+    user: CommentUser  # Include user data
 
     class Config:
         from_attributes = True
@@ -65,10 +82,5 @@ class CommentVoteCreate(BaseModel):
     is_upvote: bool
 
 
-class CommentWithScore(Comment):
-    score: int
-
-
-# For returning post details with comments:
 class PostWithComments(Post):
-    comments: List[Comment] = []
+    comments: List[CommentWithScore] = []

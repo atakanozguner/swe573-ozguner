@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.utils import get_current_user
 from app.schemas import (
     PostCreate,
     Post,
     PostWithComments,
-    Comment,
     CommentCreate,
     CommentVoteCreate,
     CommentWithScore,
@@ -17,16 +16,45 @@ from app.models import User, CommentVote
 from typing import List, Optional
 import uuid
 import os
+import requests
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
+
+
+# @router.get("/tags/search", response_model=List[dict])
+# def search_tags(query: str, db: Session = Depends(get_db)):
+#     # Fetch results from Wikidata
+#     response = requests.get(
+#         "https://www.wikidata.org/w/api.php",
+#         params={
+#             "action": "wbsearchentities",
+#             "language": "en",
+#             "format": "json",
+#             "search": query,
+#         },
+#     )
+#     if response.status_code != 200:
+#         raise HTTPException(status_code=500, detail="Error fetching tags from Wikidata")
+
+#     data = response.json()
+#     return [
+#         {"label": item["label"], "description": item.get("description", "")}
+#         for item in data.get("search", [])
+#     ]
 
 
 @router.post("/posts", response_model=Post)
 async def create_post(
     title: str = Form(...),
     description: Optional[str] = Form(None),
+    tags: Optional[List[str]] = Form(None),  # Accept tags as a list
     material: Optional[str] = Form(None),
-    size: Optional[str] = Form(None),
+    length: Optional[str] = Form(None),
+    width: Optional[str] = Form(None),
+    height: Optional[str] = Form(None),
     color: Optional[str] = Form(None),
     shape: Optional[str] = Form(None),
     weight: Optional[str] = Form(None),
@@ -40,28 +68,23 @@ async def create_post(
 ):
     image_url = None
     if image:
-        # Create a directory if it doesn't exist
         os.makedirs("static/images", exist_ok=True)
-
-        # Generate a unique filename
         unique_name = f"{uuid.uuid4()}_{image.filename}"
         file_path = os.path.join("static", "images", unique_name)
 
-        # Save the image to disk
         contents = await image.read()
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        # Store a path or URL in the database
-        # Assuming you serve static files from /static/ route
         image_url = f"/static/images/{unique_name}"
 
-    # Create the post object using models.Post
     db_post = PostModel(
         title=title,
         description=description,
         material=material,
-        size=size,
+        length=length,
+        width=width,
+        height=height,
         color=color,
         shape=shape,
         weight=weight,
@@ -70,6 +93,7 @@ async def create_post(
         taste=taste,
         origin=origin,
         image_url=image_url,
+        tags=tags,
         owner_id=current_user.id,
     )
 
@@ -86,13 +110,33 @@ def get_posts(db: Session = Depends(get_db)):
 
 @router.get("/posts/{post_id}", response_model=PostWithComments)
 def get_post(post_id: int, db: Session = Depends(get_db)):
-    post = db.query(PostModel).filter(PostModel.id == post_id).first()
+    post = (
+        db.query(PostModel)
+        .options(selectinload(PostModel.comments).selectinload(CommentModel.user))
+        .filter(PostModel.id == post_id)
+        .first()
+    )
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+
+    # Calculate score for each comment
+    for c in post.comments:
+        upvotes = (
+            db.query(CommentVote)
+            .filter(CommentVote.comment_id == c.id, CommentVote.is_upvote == True)
+            .count()
+        )
+        downvotes = (
+            db.query(CommentVote)
+            .filter(CommentVote.comment_id == c.id, CommentVote.is_upvote == False)
+            .count()
+        )
+        c.score = upvotes - downvotes
+
     return post
 
 
-@router.post("/posts/{post_id}/comments", response_model=Comment)
+@router.post("/posts/{post_id}/comments", response_model=CommentWithScore)
 def create_comment(
     post_id: int,
     comment: CommentCreate,
@@ -109,7 +153,18 @@ def create_comment(
     db.add(db_comment)
     db.commit()
     db.refresh(db_comment)
-    return db_comment
+
+    return CommentWithScore(
+        id=db_comment.id,
+        post_id=db_comment.post_id,
+        user_id=db_comment.user_id,
+        content=db_comment.content,
+        score=0,
+        user={
+            "id": db_comment.user.id,
+            "username": db_comment.user.username,
+        },  # Include user info
+    )
 
 
 @router.post("/comments/{comment_id}/vote", response_model=CommentWithScore)
@@ -123,6 +178,7 @@ def vote_on_comment(
     if not db_comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
+    # Check existing votes
     existing_vote = (
         db.query(CommentVote)
         .filter(
@@ -132,17 +188,14 @@ def vote_on_comment(
     )
 
     if existing_vote:
-        # Update existing vote
         existing_vote.is_upvote = vote.is_upvote
     else:
-        # Create new vote
         new_vote = CommentVote(
             comment_id=comment_id, user_id=current_user.id, is_upvote=vote.is_upvote
         )
         db.add(new_vote)
 
     db.commit()
-    db.refresh(db_comment)
 
     # Calculate score
     upvotes = (
@@ -157,11 +210,17 @@ def vote_on_comment(
     )
     score = upvotes - downvotes
 
-    # Return updated comment data with score
+    # Refresh to include user relationship
+    db.refresh(db_comment)
+
     return CommentWithScore(
         id=db_comment.id,
         post_id=db_comment.post_id,
         user_id=db_comment.user_id,
         content=db_comment.content,
         score=score,
+        user={
+            "id": db_comment.user.id,
+            "username": db_comment.user.username,
+        },  # Include user info
     )
