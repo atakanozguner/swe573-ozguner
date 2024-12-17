@@ -6,6 +6,8 @@ import RegisterPage from './RegisterPage';
 import PostsPage from './PostsPage';
 import CreatePostPage from './CreatePostPage';
 import PostDetailPage from './PostDetailPage';
+import HotPage from './HotPage';
+
 
 import { UserContext } from './UserContext';
 
@@ -49,6 +51,9 @@ function App() {
                     <span className="nav-link">Welcome, {username}</span>
                   </li>
                   <li className="nav-item">
+                    <Link className="nav-link" to="/posts/hot">🔥 Hot</Link>
+                  </li>
+                  <li className="nav-item">
                     <button className="nav-link btn btn-link" onClick={handleLogout}>Logout</button>
                   </li>
                 </>
@@ -74,6 +79,7 @@ function App() {
         <Route path="/posts" element={<PostsPage />} />
         <Route path="/posts/new" element={<CreatePostPage />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
+        <Route path="/posts/hot" element={<HotPage />} />
       </Routes>
     </Router>
   );

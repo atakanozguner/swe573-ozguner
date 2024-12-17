@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.utils import get_current_user
@@ -158,6 +159,23 @@ def get_posts(db: Session = Depends(get_db)):
         )
         serialized_posts.append(serialized_post)
     return serialized_posts
+
+
+@router.get("/posts/hot", response_model=List[PostWithTags])
+def get_hot_posts(db: Session = Depends(get_db)):
+    """
+    Fetch posts ordered by interest count in descending order.
+    """
+    posts = (
+        db.query(PostModel)
+        .outerjoin(
+            PostInterest, PostModel.id == PostInterest.post_id
+        )  # Join post_interests
+        .group_by(PostModel.id)  # Group by post to allow counting interests
+        .order_by(desc(func.count(PostInterest.id)))  # Count interest records
+        .all()
+    )
+    return posts
 
 
 @router.get("/posts/{post_id}", response_model=PostWithDetails)
