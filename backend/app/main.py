@@ -11,6 +11,7 @@ from . import models, schemas, utils
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security import OAuth2
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +34,9 @@ logging.info(f"DEBUG: SECRET_KEY is: {SECRET_KEY}")
 # Initialize database tables
 
 app = FastAPI()
+
+os.makedirs("static/images", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class OAuth2PasswordBearerWithCookie(OAuth2):
