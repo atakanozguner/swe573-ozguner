@@ -23,6 +23,8 @@ services:
       DATABASE_URL: "postgresql://postgres:password@db/swe573_database"
     ports:
       - "8000:8000"
+    volumes:
+      - ./static/images:/app/static/images 
     depends_on:
       - db
     networks:
