@@ -1,5 +1,5 @@
-import React, { useContext, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import HomePage from './HomePage';
 import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
@@ -7,12 +7,13 @@ import PostsPage from './PostsPage';
 import CreatePostPage from './CreatePostPage';
 import PostDetailPage from './PostDetailPage';
 import HotPage from './HotPage';
-
+import SearchResultsPage from './SearchResultsPage';
 
 import { UserContext } from './UserContext';
 
 function App() {
   const { username, setUsername } = useContext(UserContext);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:8000/users/me", { credentials: 'include' })
@@ -37,21 +38,18 @@ function App() {
       <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
         <div className="container-fluid">
           <Link className="navbar-brand" to="/">SWE573 App</Link>
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="navbarSupportedContent">
+          <div className="collapse navbar-collapse">
             <ul className="navbar-nav me-auto mb-2 mb-lg-0">
               <li className="nav-item">
-                <Link className="nav-link" to="/">Home</Link>
+                <Link className="nav-link" to="/posts">Posts</Link>
+              </li>
+              <li className="nav-item">
+                <Link className="nav-link" to="/posts/hot">🔥 Hot</Link>
               </li>
               {username ? (
                 <>
                   <li className="nav-item">
                     <span className="nav-link">Welcome, {username}</span>
-                  </li>
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/posts/hot">🔥 Hot</Link>
                   </li>
                   <li className="nav-item">
                     <button className="nav-link btn btn-link" onClick={handleLogout}>Logout</button>
@@ -68,6 +66,7 @@ function App() {
                 </>
               )}
             </ul>
+            <SearchForm searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
           </div>
         </div>
       </nav>
@@ -80,8 +79,33 @@ function App() {
         <Route path="/posts/new" element={<CreatePostPage />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/posts/hot" element={<HotPage />} />
+        <Route path="/search" element={<SearchResultsPage />} />
       </Routes>
     </Router>
+  );
+}
+
+function SearchForm({ searchQuery, setSearchQuery }) {
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  return (
+    <form className="d-flex" onSubmit={handleSearch}>
+      <input
+        className="form-control me-2"
+        type="search"
+        placeholder="Search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      <button className="btn btn-outline-light" type="submit">Search</button>
+    </form>
   );
 }
 

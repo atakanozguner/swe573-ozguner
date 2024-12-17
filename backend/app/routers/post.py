@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session, selectinload
 from app.database import get_db
 from app.utils import get_current_user
@@ -173,6 +173,27 @@ def get_hot_posts(db: Session = Depends(get_db)):
         )  # Join post_interests
         .group_by(PostModel.id)  # Group by post to allow counting interests
         .order_by(desc(func.count(PostInterest.id)))  # Count interest records
+        .all()
+    )
+    return posts
+
+
+@router.get("/posts/search", response_model=List[PostWithTags])
+def search_posts(query: str, db: Session = Depends(get_db)):
+    """
+    Search posts based on query string. Matches title and description.
+    """
+    if not query:
+        return []
+
+    posts = (
+        db.query(PostModel)
+        .filter(
+            or_(
+                PostModel.title.ilike(f"%{query}%"),
+                PostModel.description.ilike(f"%{query}%"),
+            )
+        )
         .all()
     )
     return posts

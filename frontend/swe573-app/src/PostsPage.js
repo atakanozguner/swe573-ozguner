@@ -50,6 +50,9 @@ function PostsPage() {
       <div className="mb-3 text-end">
         <Link to="/posts/new" className="btn btn-success">Create New Post</Link>
       </div>
+      <div className="mb-3 text-end">
+        <Link to="/posts/hot" className="btn btn-success">Hot Posts 🔥</Link>
+      </div>
       {posts.length === 0 && <p>No posts available yet.</p>}
       <div className="row">
         {posts.map(post => (

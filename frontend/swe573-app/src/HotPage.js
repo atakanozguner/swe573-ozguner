@@ -24,6 +24,9 @@ function HotPage() {
   return (
     <div className="container mt-5">
       <h1>🔥 Hot Posts</h1>
+      <div className="mb-3 text-end">
+        <Link to="/posts/" className="btn btn-success">All Posts</Link>
+      </div>
       {posts.length === 0 && <p>No hot posts available yet.</p>}
       <div className="row">
         {posts.map(post => (
