@@ -5,18 +5,39 @@ function PostsPage() {
   const [posts, setPosts] = useState([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const fetchPosts = () => {
     fetch("http://localhost:8000/posts", {
       credentials: 'include'
     })
-    .then(res => {
-      if (!res.ok) {
-        throw new Error("Failed to fetch posts");
-      }
-      return res.json();
+      .then(res => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch posts");
+        }
+        return res.json();
+      })
+      .then(data => setPosts(data))
+      .catch(err => setError(err.message));
+  };
+
+  const handleInterest = (postId) => {
+    fetch(`http://localhost:8000/posts/${postId}/interested`, {
+      method: "POST",
+      credentials: 'include',
     })
-    .then(data => setPosts(data))
-    .catch(err => setError(err.message));
+      .then(res => res.json())
+      .then(data => {
+        // Update the interest count in the post list
+        setPosts(prevPosts =>
+          prevPosts.map(post =>
+            post.id === postId ? { ...post, interest_count: data.interest_count } : post
+          )
+        );
+      })
+      .catch(err => console.error("Error toggling interest:", err));
+  };
+
+  useEffect(() => {
+    fetchPosts();
   }, []);
 
   if (error) {
@@ -34,10 +55,33 @@ function PostsPage() {
         {posts.map(post => (
           <div className="col-md-4 mb-4" key={post.id}>
             <div className="card">
-              {post.image_url && (
-                // Use full URL if needed: `http://localhost:8000` + post.image_url
-                <img src={`http://localhost:8000${post.image_url}`} className="card-img-top" alt={post.title} />
-              )}
+              <div style={{ position: "relative" }}>
+                {post.image_url && (
+                  <img
+                    src={`http://localhost:8000${post.image_url}`}
+                    className="card-img-top"
+                    alt={post.title}
+                    style={{ height: "200px", objectFit: "cover" }}
+                  />
+                )}
+                {/* Interested Button */}
+                <button
+                  onClick={() => handleInterest(post.id)}
+                  className="btn btn-light"
+                  style={{
+                    position: "absolute",
+                    bottom: "10px",
+                    right: "10px",
+                    backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    border: "1px solid #ddd",
+                    padding: "5px 10px",
+                    fontSize: "14px",
+                    borderRadius: "5px"
+                  }}
+                >
+                  ❤️ {post.interest_count || 0}
+                </button>
+              </div>
               <div className="card-body">
                 <h5 className="card-title">{post.title}</h5>
                 <Link to={`/posts/${post.id}`} className="btn btn-primary">View Details</Link>

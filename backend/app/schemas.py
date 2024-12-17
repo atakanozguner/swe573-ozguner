@@ -40,6 +40,7 @@ class PostBase(BaseModel):
     taste: Optional[str] = None
     origin: Optional[str] = None
     tags: Optional[List[TagBase]] = []
+    interest_count: int = 0
 
     @field_validator("length", "width", "height", "weight")
     def check_positive(cls, v, field):

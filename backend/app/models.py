@@ -50,6 +50,18 @@ post_tag_table = Table(
 )
 
 
+class PostInterest(Base):
+    __tablename__ = "post_interests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    post = relationship("Post", back_populates="interests")
+    user = relationship("User")
+
+
 class Tag(Base):
     __tablename__ = "tags"
 
@@ -81,6 +93,9 @@ class Post(Base):
     taste = Column(String, nullable=True)
     origin = Column(String, nullable=True)
     tags = relationship("Tag", secondary=post_tag_table, back_populates="posts")
+    interests = relationship(
+        "PostInterest", back_populates="post", cascade="all, delete-orphan"
+    )
 
     owner_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -89,6 +104,10 @@ class Post(Base):
     comments = relationship(
         "Comment", back_populates="post", cascade="all, delete-orphan"
     )
+
+    @property
+    def interest_count(self):
+        return len(self.interests)
 
 
 class Comment(Base):

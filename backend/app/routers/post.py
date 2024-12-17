@@ -14,7 +14,7 @@ from app.schemas import (
 )
 from app.models import Post as PostModel
 from app.models import Comment as CommentModel
-from app.models import User, CommentVote, Tag
+from app.models import User, CommentVote, Tag, PostInterest
 from typing import List, Optional
 import uuid
 import os
@@ -52,6 +52,17 @@ router = APIRouter()
 async def create_post(
     title: str = Form(...),
     description: Optional[str] = Form(None),
+    material: Optional[str] = Form(None),
+    length: Optional[float] = Form(None),
+    width: Optional[float] = Form(None),
+    height: Optional[float] = Form(None),
+    color: Optional[str] = Form(None),
+    shape: Optional[str] = Form(None),
+    weight: Optional[float] = Form(None),
+    location: Optional[str] = Form(None),
+    smell: Optional[str] = Form(None),
+    taste: Optional[str] = Form(None),
+    origin: Optional[str] = Form(None),
     tags: Optional[List[str]] = Form(None),  # Accept tags as a list of JSON strings
     image: UploadFile = File(None),
     db: Session = Depends(get_db),
@@ -72,6 +83,17 @@ async def create_post(
     db_post = PostModel(
         title=title,
         description=description,
+        material=material,
+        length=length,
+        width=width,
+        height=height,
+        color=color,
+        shape=shape,
+        weight=weight,
+        location=location,
+        smell=smell,
+        taste=taste,
+        origin=origin,
         image_url=image_url,
         owner_id=current_user.id,
     )
@@ -259,3 +281,33 @@ def vote_on_comment(
             "username": db_comment.user.username,
         },  # Include user info
     )
+
+
+@router.post("/posts/{post_id}/interested")
+def toggle_interest(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    post = db.query(PostModel).filter(PostModel.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Check if user has already shown interest
+    existing_interest = (
+        db.query(PostInterest)
+        .filter_by(post_id=post_id, user_id=current_user.id)
+        .first()
+    )
+
+    if existing_interest:
+        db.delete(existing_interest)  # Remove interest if already present
+    else:
+        new_interest = PostInterest(post_id=post_id, user_id=current_user.id)
+        db.add(new_interest)
+
+    db.commit()
+
+    # Return updated interest count
+    interest_count = db.query(PostInterest).filter_by(post_id=post_id).count()
+    return {"interest_count": interest_count}
