@@ -41,6 +41,7 @@ class PostBase(BaseModel):
     origin: Optional[str] = None
     tags: Optional[List[TagBase]] = []
     interest_count: int = 0
+    creator: str
 
     @field_validator("length", "width", "height", "weight")
     def check_positive(cls, v, field):
@@ -107,9 +108,26 @@ class Tag(TagBase):
         from_attributes = True
 
 
-class PostWithTags(PostBase):
+class PostWithTags(BaseModel):
     id: int
-    tags: List[Tag] = []
+    title: str
+    description: Optional[str]
+    image_url: Optional[str]
+    material: Optional[str]
+    length: Optional[float]
+    width: Optional[float]
+    height: Optional[float]
+    color: Optional[str]
+    shape: Optional[str]
+    weight: Optional[float]
+    location: Optional[str]
+    smell: Optional[str]
+    taste: Optional[str]
+    origin: Optional[str]
+    resolved: bool = False
+    creator: str  # Include creator field
+    interest_count: int  # Include interest count field
+    tags: List[TagBase] = []
 
     class Config:
         from_attributes = True

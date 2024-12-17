@@ -87,6 +87,7 @@ function PostsPage() {
               </div>
               <div className="card-body">
                 <h5 className="card-title">{post.title}</h5>
+                <p className="card-text"><strong>Creator:</strong> {post.creator}</p>
                 <Link to={`/posts/${post.id}`} className="btn btn-primary">View Details</Link>
               </div>
             </div>

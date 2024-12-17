@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy import desc, func, or_
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 from app.database import get_db
 from app.utils import get_current_user
 from app.schemas import (
@@ -64,11 +64,14 @@ async def create_post(
     smell: Optional[str] = Form(None),
     taste: Optional[str] = Form(None),
     origin: Optional[str] = Form(None),
-    tags: Optional[List[str]] = Form(None),  # Accept tags as a list of JSON strings
+    tags: Optional[List[str]] = Form(None),  # Accept tags as a list of strings or JSON
     image: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    Endpoint to create a post with all fields, including tags and image upload.
+    """
     # Handle image upload
     image_url = None
     if image:
@@ -80,7 +83,7 @@ async def create_post(
             f.write(await image.read())
         image_url = f"/static/images/{unique_name}"
 
-    # Create post
+    # Create the post with all fields
     db_post = PostModel(
         title=title,
         description=description,
@@ -99,24 +102,23 @@ async def create_post(
         owner_id=current_user.id,
     )
 
-    # Handle tags
+    # Handle tags (if provided)
     if tags:
-        for tag_info in tags:  # Expecting tags as list of strings or objects
-            # Check if tag_info is a dictionary or string
+        for tag_info in tags:
             if isinstance(tag_info, dict):
                 label = tag_info.get("label")
                 wikidata_url = tag_info.get("wikidata_url")
                 description = tag_info.get("description")
-            else:  # If it's a string, default other fields to placeholders
+            else:  # Treat it as a string if not a dictionary
                 label = tag_info
-                wikidata_url = "https://www.wikidata.org"  # Default base URL
+                wikidata_url = "https://www.wikidata.org"  # Default URL
                 description = "No description available"
 
-            # Check if the tag already exists
+            # Check if tag already exists
             existing_tag = db.query(Tag).filter(Tag.label == label).first()
 
             if not existing_tag:
-                # Create a new tag with default or provided values
+                # Create new tag if it doesn't exist
                 new_tag = Tag(
                     label=label, wikidata_url=wikidata_url, description=description
                 )
@@ -127,37 +129,81 @@ async def create_post(
             else:
                 tag_object = existing_tag
 
-            # Associate the tag with the post
+            # Associate tag with post
             db_post.tags.append(tag_object)
 
+    # Save post to database
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
 
-    return db_post
+    # Return post with creator and all fields
+    return {
+        "id": db_post.id,
+        "title": db_post.title,
+        "description": db_post.description,
+        "material": db_post.material,
+        "length": db_post.length,
+        "width": db_post.width,
+        "height": db_post.height,
+        "color": db_post.color,
+        "shape": db_post.shape,
+        "weight": db_post.weight,
+        "location": db_post.location,
+        "smell": db_post.smell,
+        "taste": db_post.taste,
+        "origin": db_post.origin,
+        "image_url": db_post.image_url,
+        "creator": current_user.username,
+        "interest_count": 0,
+        "tags": [
+            {
+                "label": tag.label,
+                "wikidata_url": tag.wikidata_url,
+                "description": tag.description,
+            }
+            for tag in db_post.tags
+        ],
+    }
 
 
-@router.get("/posts", response_model=List[Post])
+@router.get("/posts", response_model=List[PostWithTags])
 def get_posts(db: Session = Depends(get_db)):
-    posts = db.query(PostModel).all()
+    posts = db.query(PostModel).options(joinedload(PostModel.owner)).all()
 
-    # Convert tags to serialized format for each post
+    # Serialize posts
     serialized_posts = []
     for post in posts:
-        serialized_post = post.__dict__.copy()
-        serialized_post["tags"] = (
-            [
-                {
-                    "label": tag.label,
-                    "wikidata_url": tag.wikidata_url,
-                    "description": tag.description,
-                }
-                for tag in post.tags
-            ]
-            if post.tags
-            else []
+        serialized_posts.append(
+            {
+                "id": post.id,
+                "title": post.title,
+                "description": post.description,
+                "image_url": post.image_url,
+                "material": post.material,
+                "length": post.length,
+                "width": post.width,
+                "height": post.height,
+                "color": post.color,
+                "shape": post.shape,
+                "weight": post.weight,
+                "location": post.location,
+                "smell": post.smell,
+                "taste": post.taste,
+                "origin": post.origin,
+                "resolved": False,  # Default to unresolved
+                "creator": post.owner.username,
+                "interest_count": len(post.interests),
+                "tags": [
+                    {
+                        "label": tag.label,
+                        "wikidata_url": tag.wikidata_url,
+                        "description": tag.description,
+                    }
+                    for tag in post.tags
+                ],
+            }
         )
-        serialized_posts.append(serialized_post)
     return serialized_posts
 
 
@@ -166,16 +212,52 @@ def get_hot_posts(db: Session = Depends(get_db)):
     """
     Fetch posts ordered by interest count in descending order.
     """
+    # Subquery for interest count
+    interest_count_subquery = (
+        db.query(
+            PostInterest.post_id, func.count(PostInterest.id).label("interest_count")
+        )
+        .group_by(PostInterest.post_id)
+        .subquery()
+    )
+
+    # Query posts with the interest count and the owner's username
     posts = (
-        db.query(PostModel)
+        db.query(
+            PostModel,
+            User.username.label("creator"),
+            func.coalesce(interest_count_subquery.c.interest_count, 0).label(
+                "interest_count"
+            ),
+        )
         .outerjoin(
-            PostInterest, PostModel.id == PostInterest.post_id
-        )  # Join post_interests
-        .group_by(PostModel.id)  # Group by post to allow counting interests
-        .order_by(desc(func.count(PostInterest.id)))  # Count interest records
+            interest_count_subquery, interest_count_subquery.c.post_id == PostModel.id
+        )
+        .outerjoin(User, User.id == PostModel.owner_id)
+        .order_by(desc("interest_count"))
         .all()
     )
-    return posts
+
+    # Convert query results to the response model
+    result = []
+    for post, creator, interest_count in posts:
+        post_data = post.__dict__.copy()
+        post_data["creator"] = creator
+        post_data["interest_count"] = interest_count
+
+        # Serialize tags
+        post_data["tags"] = [
+            {
+                "label": tag.label,
+                "wikidata_url": tag.wikidata_url,
+                "description": tag.description,
+            }
+            for tag in post.tags
+        ]
+
+        result.append(post_data)
+
+    return result
 
 
 @router.get("/posts/search", response_model=List[PostWithTags])
@@ -186,8 +268,10 @@ def search_posts(query: str, db: Session = Depends(get_db)):
     if not query:
         return []
 
+    # Fetch posts and join with User table to get creator username
     posts = (
-        db.query(PostModel)
+        db.query(PostModel, User.username.label("creator"))
+        .join(User, User.id == PostModel.owner_id)
         .filter(
             or_(
                 PostModel.title.ilike(f"%{query}%"),
@@ -196,7 +280,30 @@ def search_posts(query: str, db: Session = Depends(get_db)):
         )
         .all()
     )
-    return posts
+
+    # Serialize the results to match PostWithTags schema
+    result = []
+    for post, creator in posts:
+        post_data = post.__dict__.copy()
+        post_data["creator"] = creator
+
+        # Serialize tags
+        post_data["tags"] = [
+            {
+                "label": tag.label,
+                "wikidata_url": tag.wikidata_url,
+                "description": tag.description,
+            }
+            for tag in post.tags
+        ]
+
+        # Calculate interest count
+        interest_count = len(post.interests)
+        post_data["interest_count"] = interest_count
+
+        result.append(post_data)
+
+    return result
 
 
 @router.get("/posts/{post_id}", response_model=PostWithDetails)
@@ -228,7 +335,7 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
             .count()
         )
         c.score = upvotes - downvotes
-
+    post.creator = post.owner.username
     return post
 
 

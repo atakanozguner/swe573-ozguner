@@ -76,7 +76,7 @@ class Tag(Base):
 
 class Post(Base):
     __tablename__ = "posts"
-
+    __allow_unmapped__ = True
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     image_url = Column(String, nullable=True)

@@ -78,6 +78,7 @@ function PostDetailPage() {
   return (
     <div className="container mt-5">
       <h1>{post.title}</h1>
+      <p><strong>Creator:</strong> {post.creator}</p>
       {post.image_url && (
         <img 
           src={`http://localhost:8000${post.image_url}`} 
