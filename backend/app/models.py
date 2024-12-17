@@ -1,8 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from sqlalchemy import DateTime
+
 
 # Database setup
 try:
@@ -33,13 +36,55 @@ class Post(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    content = Column(String)
+    title = Column(String, index=True, nullable=False)
+    image_url = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    material = Column(String, nullable=True)
+    size = Column(String, nullable=True)
+    color = Column(String, nullable=True)
+    shape = Column(String, nullable=True)
+    weight = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    smell = Column(String, nullable=True)
+    taste = Column(String, nullable=True)
+    origin = Column(String, nullable=True)
+
     owner_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )  # Prevent NULL
-
+    )
     owner = relationship("User", back_populates="posts")
+    comments = relationship(
+        "Comment", back_populates="post", cascade="all, delete-orphan"
+    )
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+
+    post = relationship("Post", back_populates="comments")
+    user = relationship("User")
+    votes = relationship(
+        "CommentVote", back_populates="comment", cascade="all, delete-orphan"
+    )
+
+
+class CommentVote(Base):
+    __tablename__ = "comment_votes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_upvote = Column(Boolean, nullable=False)
+
+    # Relationships if needed
+    comment = relationship("Comment", back_populates="votes")
+    user = relationship("User")
 
 
 # Create the tables in the database if they don't exist
