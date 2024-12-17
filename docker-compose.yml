@@ -31,17 +31,19 @@ services:
       - backend
     dns:
       - 8.8.8.8  # Google DNS
+    env_file:
+      - ./backend/.env
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    networks:
-      - backend
-    dns:
-      - 8.8.8.8  # Google DNS
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5000:5000"
+  #   networks:
+  #     - backend
+  #   dns:
+  #     - 8.8.8.8  # Google DNS
 
 networks:
   backend:

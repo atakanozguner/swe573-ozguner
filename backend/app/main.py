@@ -2,15 +2,23 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .routers import post
-from .database import engine, Base, SessionLocal
+from .database import engine, Base, get_db  # Import get_db here
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from . import models, schemas, utils
 import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from . import models, schemas, utils
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+from fastapi.security import OAuth2
+from fastapi.responses import JSONResponse
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
+
+Base.metadata.create_all(bind=engine)
+# Load environment variables
 
 # Environment variable loading with defaults and validation
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -20,35 +28,39 @@ if not SECRET_KEY:
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+logging.info(f"DEBUG: SECRET_KEY is: {SECRET_KEY}")
 
 # Initialize database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+
+class OAuth2PasswordBearerWithCookie(OAuth2):
+    def __init__(self, tokenUrl: str):
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl})
+        super().__init__(flows=flows)
+
+
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="login")
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*"
-    ],  # You can restrict this to ["http://localhost:5000"] for more security
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
-# Dependency for getting the database session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 # Include routers for modular endpoints
-app.include_router(post.router)
+app.include_router(
+    post.router,
+    prefix="",
+    tags=["posts"],
+    dependencies=[Depends(utils.get_current_user)],
+)
+app.state.SECRET_KEY = SECRET_KEY
+app.state.ALGORITHM = ALGORITHM
 
 
 @app.get("/")
@@ -79,21 +91,32 @@ def login(
     db_user = (
         db.query(models.User).filter(models.User.username == form_data.username).first()
     )
-    # print(db_user)
-    # print(form_data.username)
-    # print(form_data.password)
     if not db_user or not utils.verify_password(
         form_data.password, db_user.hashed_password
     ):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
+    # Create the access token
     access_token = utils.create_access_token(
         data={"sub": db_user.username},
-        secret_key=SECRET_KEY,
-        algorithm=ALGORITHM,
+        secret_key=app.state.SECRET_KEY,
+        algorithm=app.state.ALGORITHM,
         expires_delta=ACCESS_TOKEN_EXPIRE_MINUTES,
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+
+    # Return the token in an HTTP-only cookie
+    response = JSONResponse(
+        content={"access_token": access_token, "token_type": "bearer"}
+    )
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="lax",
+        secure=False,  # Set to True in production with HTTPS
+    )
+    return response
 
 
 @app.get("/users")
@@ -101,7 +124,6 @@ def list_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
 
-# Health check endpoint for verifying DB connection
 @app.get("/health/db")
 def check_db_connection(db: Session = Depends(get_db)):
     try:
