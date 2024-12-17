@@ -39,6 +39,8 @@ services:
       - web
     networks:
       - backend
+    env_file:
+      - ./frontend/swe573-app/.env
 
 networks:
   backend:

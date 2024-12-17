@@ -14,7 +14,7 @@ function LoginPage() {
     formData.append("username", usernameInput);
     formData.append("password", password);
 
-    const response = await fetch("http://localhost:8000/login", {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/login`, {
       method: "POST",
       credentials: 'include',
       body: formData
@@ -24,7 +24,7 @@ function LoginPage() {
       setMessage("Login successful!");
 
       // After login, fetch the user info
-      const meRes = await fetch("http://localhost:8000/users/me", { credentials: 'include' });
+      const meRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/users/me`, { credentials: 'include' });
       if (meRes.ok) {
         const meData = await meRes.json();
         setUsername(meData.username);

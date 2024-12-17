@@ -6,7 +6,7 @@ function PostsPage() {
   const [error, setError] = useState("");
 
   const fetchPosts = () => {
-    fetch("http://localhost:8000/posts", {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/posts`, {
       credentials: 'include'
     })
       .then(res => {
@@ -20,7 +20,7 @@ function PostsPage() {
   };
 
   const handleInterest = (postId) => {
-    fetch(`http://localhost:8000/posts/${postId}/interested`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/posts/${postId}/interested`, {
       method: "POST",
       credentials: 'include',
     })
@@ -61,7 +61,7 @@ function PostsPage() {
               <div style={{ position: "relative" }}>
                 {post.image_url && (
                   <img
-                    src={`http://localhost:8000${post.image_url}`}
+                    src={`${process.env.REACT_APP_BACKEND_URL}${post.image_url}`}
                     className="card-img-top"
                     alt={post.title}
                     style={{ height: "200px", objectFit: "cover" }}

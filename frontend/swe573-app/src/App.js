@@ -16,14 +16,14 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8000/users/me", { credentials: 'include' })
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/users/me`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => setUsername(data.username))
       .catch(() => setUsername(null));
   }, [setUsername]);
 
   const handleLogout = () => {
-    fetch("http://localhost:8000/logout", {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
       method: "POST",
       credentials: 'include'
     }).then(res => {

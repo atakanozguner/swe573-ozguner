@@ -6,7 +6,7 @@ function HotPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8000/posts/hot", { credentials: 'include' })
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/posts/hot`, { credentials: 'include' })
       .then((res) => {
         if (!res.ok) {
           throw new Error("Failed to fetch hot posts");
@@ -33,7 +33,7 @@ function HotPage() {
           <div className="col-md-4 mb-4" key={post.id}>
             <div className="card">
               {post.image_url && (
-                <img src={`http://localhost:8000${post.image_url}`} className="card-img-top" alt={post.title} />
+                <img src={`${process.env.REACT_APP_BACKEND_URL}${post.image_url}`} className="card-img-top" alt={post.title} />
               )}
               <div className="card-body">
                 <h5 className="card-title">{post.title}</h5>

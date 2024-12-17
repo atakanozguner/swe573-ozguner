@@ -25,7 +25,7 @@ function CreatePostPage() {
 
   const searchTags = debounce((inputValue) => {
     if (inputValue) {
-      fetch(`http://localhost:8000/tags/search?query=${inputValue}`, {
+      fetch(`${process.env.REACT_APP_BACKEND_URL}/tags/search?query=${inputValue}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       })
@@ -71,7 +71,7 @@ function CreatePostPage() {
     if (tags) tags.forEach((tag) => formData.append("tags", tag.value));
 
 
-    const response = await fetch("http://localhost:8000/posts", {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/posts`, {
       method: "POST",
       credentials: 'include',
       body: formData

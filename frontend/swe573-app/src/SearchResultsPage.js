@@ -12,7 +12,7 @@ function SearchResultsPage() {
 
   useEffect(() => {
     if (query) {
-      fetch(`http://localhost:8000/posts/search?query=${encodeURIComponent(query)}`, {
+      fetch(`${process.env.REACT_APP_BACKEND_URL}/posts/search?query=${encodeURIComponent(query)}`, {
         credentials: 'include',
       })
         .then(res => {
@@ -38,7 +38,7 @@ function SearchResultsPage() {
             <div className="card">
               {post.image_url && (
                 <img
-                  src={`http://localhost:8000${post.image_url}`}
+                  src={`${process.env.REACT_APP_BACKEND_URL}${post.image_url}`}
                   className="card-img-top"
                   alt={post.title}
                 />

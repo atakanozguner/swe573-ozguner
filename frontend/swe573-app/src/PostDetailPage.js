@@ -8,16 +8,21 @@ function PostDetailPage() {
   const [error, setError] = useState("");
   const [newComment, setNewComment] = useState("");
   const { username } = useContext(UserContext);
+  const [resolved, setResolved] = useState(false);
 
   const fetchPost = () => {
-    fetch(`http://localhost:8000/posts/${id}`, { credentials: 'include' })
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/posts/${id}`, { credentials: 'include' })
       .then(res => {
         if (!res.ok) {
           throw new Error("Failed to fetch post details");
         }
         return res.json();
       })
-      .then(data => setPost(data))
+      .then(data => {
+        setPost(data);
+        const resolvedPosts = JSON.parse(localStorage.getItem('resolvedPosts')) || [];
+        setResolved(resolvedPosts.includes(id));
+      })
       .catch(err => setError(err.message));
   };
 
@@ -29,42 +34,55 @@ function PostDetailPage() {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    fetch(`http://localhost:8000/posts/${id}/comments`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/posts/${id}/comments`, {
       method: "POST",
       credentials: 'include',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: newComment })
     })
-    .then(res => {
-      if (!res.ok) {
-        return res.json().then(data => { throw new Error(data.detail || 'Error creating comment'); });
-      }
-      return res.json();
-    })
-    .then(() => {
-      setNewComment("");
-      fetchPost(); // Re-fetch to update comments
-    })
-    .catch(err => setError(err.message));
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => { throw new Error(data.detail || 'Error creating comment'); });
+        }
+        return res.json();
+      })
+      .then(() => {
+        setNewComment("");
+        fetchPost(); // Refresh post to update comments
+      })
+      .catch(err => setError(err.message));
   };
 
   const handleVote = (commentId, isUpvote) => {
-    fetch(`http://localhost:8000/comments/${commentId}/vote`, {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/comments/${commentId}/vote`, {
       method: "POST",
       credentials: 'include',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_upvote: isUpvote })
     })
-    .then(res => {
-      if (!res.ok) {
-        return res.json().then(data => { throw new Error(data.detail || 'Error voting'); });
-      }
-      return res.json();
-    })
-    .then(() => {
-      fetchPost(); // re-fetch post to update scores
-    })
-    .catch(err => setError(err.message));
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => { throw new Error(data.detail || 'Error voting'); });
+        }
+        return res.json();
+      })
+      .then(() => {
+        fetchPost(); // Refresh post to update comment scores
+      })
+      .catch(err => setError(err.message));
+  };
+
+  const handleResolvedToggle = () => {
+    const resolvedPosts = JSON.parse(localStorage.getItem('resolvedPosts')) || [];
+    if (resolved) {
+      const updated = resolvedPosts.filter(postId => postId !== id);
+      localStorage.setItem('resolvedPosts', JSON.stringify(updated));
+      setResolved(false);
+    } else {
+      resolvedPosts.push(id);
+      localStorage.setItem('resolvedPosts', JSON.stringify(resolvedPosts));
+      setResolved(true);
+    }
   };
 
   if (error) {
@@ -77,15 +95,29 @@ function PostDetailPage() {
 
   return (
     <div className="container mt-5">
-      <h1>{post.title}</h1>
+      <h1>
+        {post.title} {resolved && <span className="badge bg-success ms-2">Resolved</span>}
+      </h1>
       <p><strong>Creator:</strong> {post.creator}</p>
+
       {post.image_url && (
-        <img 
-          src={`http://localhost:8000${post.image_url}`} 
-          alt={post.title} 
-          style={{maxWidth: "100%", border: "1px solid #ddd", padding: "10px", marginBottom: "20px"}}
+        <img
+          src={`${process.env.REACT_APP_BACKEND_URL}${post.image_url}`}
+          alt={post.title}
+          style={{ maxWidth: "100%", border: "1px solid #ddd", padding: "10px", marginBottom: "20px" }}
         />
       )}
+
+      {/* Resolved toggle button */}
+      {username === post.creator && (
+        <button
+          className={`btn ${resolved ? "btn-danger" : "btn-success"} mb-3`}
+          onClick={handleResolvedToggle}
+        >
+          {resolved ? "Unmark Resolved" : "Mark as Resolved"}
+        </button>
+      )}
+
       <p><strong>Description:</strong> {post.description || "N/A"}</p>
       <p><strong>Material:</strong> {post.material || "N/A"}</p>
       <p><strong>Length: (cm)</strong> {post.length || "N/A"} cm</p>
@@ -129,55 +161,55 @@ function PostDetailPage() {
         )}
         </div>
 
-        <hr />
-        <h2>Comments</h2>
-        {post.comments.length === 0 && <p>No comments yet.</p>}
-        {post.comments.map(comment => {
+      <hr />
+      <h2>Comments</h2>
+      {post.comments.length === 0 && <p>No comments yet.</p>}
+      {post.comments.map(comment => {
         let scoreClass, scoreText;
         if (comment.score > 0) {
-            scoreClass = "text-success";
-            scoreText = `+${comment.score}`;
+          scoreClass = "text-success";
+          scoreText = `+${comment.score}`;
         } else if (comment.score < 0) {
-            scoreClass = "text-danger";
-            scoreText = `${comment.score}`;
+          scoreClass = "text-danger";
+          scoreText = `${comment.score}`;
         } else {
-            scoreClass = "text-secondary";
-            scoreText = "0";
+          scoreClass = "text-secondary";
+          scoreText = "0";
         }
 
         return (
-            <div key={comment.id} className="mb-3 border p-2">
+          <div key={comment.id} className="mb-3 border p-2">
             <p><strong>{comment.user.username}:</strong> {comment.content}</p>
             <p>Score: <span className={scoreClass}>{scoreText}</span></p>
             <div className="d-flex gap-2">
-                <button 
-                type="button" 
-                className="btn btn-sm btn-outline-success" 
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-success"
                 onClick={() => handleVote(comment.id, true)}
-                >
+              >
                 Upvote
-                </button>
-                <button 
-                type="button" 
-                className="btn btn-sm btn-outline-danger" 
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger"
                 onClick={() => handleVote(comment.id, false)}
-                >
+              >
                 Downvote
-                </button>
+              </button>
             </div>
-            </div>
+          </div>
         );
-        })}
+      })}
 
       {username ? (
         <form onSubmit={handleCommentSubmit} className="mt-4">
           <div className="mb-3">
             <label htmlFor="newComment" className="form-label">Add a Comment</label>
-            <textarea 
-              id="newComment" 
-              className="form-control" 
-              value={newComment} 
-              onChange={e => setNewComment(e.target.value)} 
+            <textarea
+              id="newComment"
+              className="form-control"
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
               rows="3"
               placeholder="Write your comment here..."
             ></textarea>
