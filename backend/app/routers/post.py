@@ -9,10 +9,12 @@ from app.schemas import (
     CommentCreate,
     CommentVoteCreate,
     CommentWithScore,
+    PostWithTags,
+    PostWithDetails,
 )
 from app.models import Post as PostModel
 from app.models import Comment as CommentModel
-from app.models import User, CommentVote
+from app.models import User, CommentVote, Tag
 from typing import List, Optional
 import uuid
 import os
@@ -46,80 +48,113 @@ router = APIRouter()
 #     ]
 
 
-@router.post("/posts", response_model=Post)
+@router.post("/posts", response_model=PostWithTags)
 async def create_post(
     title: str = Form(...),
     description: Optional[str] = Form(None),
-    tags: Optional[List[str]] = Form(None),  # Accept tags as a list
-    material: Optional[str] = Form(None),
-    length: Optional[str] = Form(None),
-    width: Optional[str] = Form(None),
-    height: Optional[str] = Form(None),
-    color: Optional[str] = Form(None),
-    shape: Optional[str] = Form(None),
-    weight: Optional[str] = Form(None),
-    location: Optional[str] = Form(None),
-    smell: Optional[str] = Form(None),
-    taste: Optional[str] = Form(None),
-    origin: Optional[str] = Form(None),
+    tags: Optional[List[str]] = Form(None),  # Accept tags as a list of JSON strings
     image: UploadFile = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # Handle image upload
     image_url = None
     if image:
         os.makedirs("static/images", exist_ok=True)
         unique_name = f"{uuid.uuid4()}_{image.filename}"
         file_path = os.path.join("static", "images", unique_name)
 
-        contents = await image.read()
         with open(file_path, "wb") as f:
-            f.write(contents)
-
+            f.write(await image.read())
         image_url = f"/static/images/{unique_name}"
 
+    # Create post
     db_post = PostModel(
         title=title,
         description=description,
-        material=material,
-        length=length,
-        width=width,
-        height=height,
-        color=color,
-        shape=shape,
-        weight=weight,
-        location=location,
-        smell=smell,
-        taste=taste,
-        origin=origin,
         image_url=image_url,
-        tags=tags,
         owner_id=current_user.id,
     )
+
+    # Handle tags
+    if tags:
+        for tag_info in tags:  # Expecting tags as list of strings or objects
+            # Check if tag_info is a dictionary or string
+            if isinstance(tag_info, dict):
+                label = tag_info.get("label")
+                wikidata_url = tag_info.get("wikidata_url")
+                description = tag_info.get("description")
+            else:  # If it's a string, default other fields to placeholders
+                label = tag_info
+                wikidata_url = "https://www.wikidata.org"  # Default base URL
+                description = "No description available"
+
+            # Check if the tag already exists
+            existing_tag = db.query(Tag).filter(Tag.label == label).first()
+
+            if not existing_tag:
+                # Create a new tag with default or provided values
+                new_tag = Tag(
+                    label=label, wikidata_url=wikidata_url, description=description
+                )
+                db.add(new_tag)
+                db.commit()
+                db.refresh(new_tag)
+                tag_object = new_tag
+            else:
+                tag_object = existing_tag
+
+            # Associate the tag with the post
+            db_post.tags.append(tag_object)
 
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
+
     return db_post
 
 
 @router.get("/posts", response_model=List[Post])
 def get_posts(db: Session = Depends(get_db)):
-    return db.query(PostModel).all()
+    posts = db.query(PostModel).all()
+
+    # Convert tags to serialized format for each post
+    serialized_posts = []
+    for post in posts:
+        serialized_post = post.__dict__.copy()
+        serialized_post["tags"] = (
+            [
+                {
+                    "label": tag.label,
+                    "wikidata_url": tag.wikidata_url,
+                    "description": tag.description,
+                }
+                for tag in post.tags
+            ]
+            if post.tags
+            else []
+        )
+        serialized_posts.append(serialized_post)
+    return serialized_posts
 
 
-@router.get("/posts/{post_id}", response_model=PostWithComments)
+@router.get("/posts/{post_id}", response_model=PostWithDetails)
 def get_post(post_id: int, db: Session = Depends(get_db)):
     post = (
         db.query(PostModel)
-        .options(selectinload(PostModel.comments).selectinload(CommentModel.user))
+        .options(
+            selectinload(PostModel.comments).selectinload(
+                CommentModel.user
+            ),  # Load comments with users
+            selectinload(PostModel.tags),  # Load tags
+        )
         .filter(PostModel.id == post_id)
         .first()
     )
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    # Calculate score for each comment
+    # Calculate scores for comments
     for c in post.comments:
         upvotes = (
             db.query(CommentVote)

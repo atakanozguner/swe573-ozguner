@@ -15,6 +15,15 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class TagBase(BaseModel):
+    label: str
+    wikidata_url: str
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class PostBase(BaseModel):
     title: str
     image_url: Optional[str] = None
@@ -30,7 +39,7 @@ class PostBase(BaseModel):
     smell: Optional[str] = None
     taste: Optional[str] = None
     origin: Optional[str] = None
-    tags: Optional[List[str]] = []  # Add tags
+    tags: Optional[List[TagBase]] = []
 
     @field_validator("length", "width", "height", "weight")
     def check_positive(cls, v, field):
@@ -84,3 +93,32 @@ class CommentVoteCreate(BaseModel):
 
 class PostWithComments(Post):
     comments: List[CommentWithScore] = []
+
+
+class TagCreate(TagBase):
+    pass
+
+
+class Tag(TagBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class PostWithTags(PostBase):
+    id: int
+    tags: List[Tag] = []
+
+    class Config:
+        from_attributes = True
+
+
+class PostWithDetails(PostBase):
+    id: int
+    owner_id: int
+    comments: List[CommentWithScore] = []  # Include comments
+    tags: List[Tag] = []  # Include tags
+
+    class Config:
+        from_attributes = True

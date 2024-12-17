@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import debounce from "lodash.debounce"; // Import lodash debounce
 import Select from "react-select";
 
 
@@ -22,7 +23,7 @@ function CreatePostPage() {
   const [tags, setTags] = useState([]);
   const [options, setOptions] = useState([]);
 
-  const searchTags = (inputValue) => {
+  const searchTags = debounce((inputValue) => {
     if (inputValue) {
       fetch(`http://localhost:8000/tags/search?query=${inputValue}`, {
         method: "GET",
@@ -34,17 +35,17 @@ function CreatePostPage() {
         })
         .then((data) => {
           console.log(data);
-          const newOptions = data.tags.map((tag) => ({
+          const newOptions = data.map((tag) => ({
             value: tag.label,
             label: `${tag.label} - ${tag.description || "No description"}`,
-            wikidata_url: tag.wikidata_url,
-            description: tag.description,
           }));
           setOptions(newOptions);
         })
         .catch((err) => console.error("Error fetching tags:", err));
+    } else {
+      setOptions([]); // Reset options if input is cleared
     }
-  };
+  }, 500); // 500ms delay to debounce API requests
 
 
   const navigate = useNavigate();
@@ -166,13 +167,16 @@ function CreatePostPage() {
         <Select
             isMulti
             options={options}
-            onInputChange={(inputValue) => searchTags(inputValue)} // Search handler
-            onChange={setTags} // Updates the selected tags
+            onInputChange={(inputValue, { action }) => {
+                if (action === "input-change") searchTags(inputValue);
+            }}
+            onChange={setTags}
             placeholder="Search and add tags"
             noOptionsMessage={() => "No tags found"}
-            getOptionLabel={(e) => e.label} // Ensure the proper label is displayed
-            getOptionValue={(e) => e.value} // Ensure uniqueness
+            getOptionLabel={(e) => e.label}
+            getOptionValue={(e) => e.value}
         />
+
 
         <button type="submit" className="btn btn-success w-100">Create Post</button>
       </form>

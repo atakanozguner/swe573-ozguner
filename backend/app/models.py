@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Float,
     JSON,
+    Table,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -37,6 +38,30 @@ class User(Base):
     posts = relationship("Post", back_populates="owner")
 
 
+post_tag_table = Table(
+    "post_tag",
+    Base.metadata,
+    Column(
+        "post_id", Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column(
+        "tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
+    ),
+)
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    label = Column(String, nullable=False)
+    wikidata_url = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+
+    # Relationship with posts
+    posts = relationship("Post", secondary=post_tag_table, back_populates="tags")
+
+
 class Post(Base):
     __tablename__ = "posts"
 
@@ -55,7 +80,7 @@ class Post(Base):
     smell = Column(String, nullable=True)
     taste = Column(String, nullable=True)
     origin = Column(String, nullable=True)
-    tags = Column(JSON, nullable=True)  # Store tags as a JSON list
+    tags = relationship("Tag", secondary=post_tag_table, back_populates="posts")
 
     owner_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False

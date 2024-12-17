@@ -99,10 +99,11 @@ function PostDetailPage() {
       <p><strong>Origin:</strong> {post.origin || "N/A"}</p>
       <div>
         <h3>Tags:</h3>
-        {post.tags && post.tags.length > 0 ? (
+        {post.tags.length > 0 ? (
             <ul>
-            {post.tags.map((tag, index) => (
-                <li key={index} className="mb-2">
+            {post.tags && post.tags.map((tag, index) => (
+            <li key={index} className="mb-2">
+                {tag.wikidata_url ? (
                 <a
                     href={tag.wikidata_url}
                     target="_blank"
@@ -111,61 +112,61 @@ function PostDetailPage() {
                 >
                     {tag.label}
                 </a>
-                {tag.description && (
-                    <p style={{ marginTop: "5px", fontSize: "0.9rem", color: "#6c757d" }}>
-                    {tag.description}
-                    </p>
+                ) : (
+                <span style={{ fontWeight: "bold", color: "#6c757d" }}>{tag.label}</span>
                 )}
-                </li>
+                {tag.description && (
+                <p style={{ marginTop: "5px", fontSize: "0.9rem", color: "#6c757d" }}>
+                    {tag.description}
+                </p>
+                )}
+            </li>
             ))}
             </ul>
         ) : (
             <p>No tags available.</p>
         )}
-      </div>
+        </div>
 
-
-      <hr/>
-      <h2>Comments</h2>
-      {post.comments.length === 0 && <p>No comments yet.</p>}
-      {post.comments.map(comment => {
+        <hr />
+        <h2>Comments</h2>
+        {post.comments.length === 0 && <p>No comments yet.</p>}
+        {post.comments.map(comment => {
         let scoreClass, scoreText;
         if (comment.score > 0) {
-          scoreClass = "text-success";
-          scoreText = `+${comment.score}`;
+            scoreClass = "text-success";
+            scoreText = `+${comment.score}`;
         } else if (comment.score < 0) {
-          scoreClass = "text-danger";
-          scoreText = `${comment.score}`;
+            scoreClass = "text-danger";
+            scoreText = `${comment.score}`;
         } else {
-          scoreClass = "text-secondary";
-          scoreText = "0";
+            scoreClass = "text-secondary";
+            scoreText = "0";
         }
 
         return (
-          <div key={comment.id} className="mb-3 border p-2">
+            <div key={comment.id} className="mb-3 border p-2">
             <p><strong>{comment.user.username}:</strong> {comment.content}</p>
             <p>Score: <span className={scoreClass}>{scoreText}</span></p>
-            {username && (
-              <div className="d-flex gap-2">
+            <div className="d-flex gap-2">
                 <button 
-                  type="button" 
-                  className="btn btn-sm btn-outline-success" 
-                  onClick={() => handleVote(comment.id, true)}
+                type="button" 
+                className="btn btn-sm btn-outline-success" 
+                onClick={() => handleVote(comment.id, true)}
                 >
-                  Upvote
+                Upvote
                 </button>
                 <button 
-                  type="button" 
-                  className="btn btn-sm btn-outline-danger" 
-                  onClick={() => handleVote(comment.id, false)}
+                type="button" 
+                className="btn btn-sm btn-outline-danger" 
+                onClick={() => handleVote(comment.id, false)}
                 >
-                  Downvote
+                Downvote
                 </button>
-              </div>
-            )}
-          </div>
+            </div>
+            </div>
         );
-      })}
+        })}
 
       {username ? (
         <form onSubmit={handleCommentSubmit} className="mt-4">
