@@ -55,3 +55,9 @@ postgres_data/
 .DS_Store
 *.bak
 *.tmp
+#REact stuff
+frontend/swe573-app/node_modules/
+build/
+.cache/
+dist/
+.env

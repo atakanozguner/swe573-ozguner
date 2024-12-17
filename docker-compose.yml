@@ -12,8 +12,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - backend
-    dns:
-      - 8.8.8.8  # Google DNS
 
   web:
     build:
@@ -29,21 +27,16 @@ services:
       - db
     networks:
       - backend
-    dns:
-      - 8.8.8.8  # Google DNS
     env_file:
       - ./backend/.env
-
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "5000:5000"
-  #   networks:
-  #     - backend
-  #   dns:
-  #     - 8.8.8.8  # Google DNS
+  frontend:
+    build: ./frontend/swe573-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
+    networks:
+      - backend
 
 networks:
   backend:

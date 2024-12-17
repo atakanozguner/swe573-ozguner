@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .routers import post
@@ -122,6 +122,25 @@ def login(
 @app.get("/users")
 def list_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
+
+
+@app.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"message": "Logged out successfully"}
+
+
+@app.get("/users")
+def list_users(db: Session = Depends(get_db)):
+    return db.query(models.User).all()
+
+
+@app.get("/users/me")
+def get_me(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(utils.get_current_user),
+):
+    return {"username": current_user.username}
 
 
 @app.get("/health/db")
