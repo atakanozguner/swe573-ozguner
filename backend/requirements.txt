@@ -8,3 +8,7 @@ pyjwt
 python-dotenv
 python-multipart
 requests
+pytest
+pytest-md
+pytest-cov
+httpx
