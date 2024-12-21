@@ -14,17 +14,33 @@ services:
       - backend
 
   web:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     restart: always
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: "postgresql://postgres:password@db/swe573_database"
     ports:
       - "8000:8000"
+    volumes:
+      - ./static/images:/app/static/images 
     depends_on:
       - db
     networks:
       - backend
+    env_file:
+      - ./backend/.env
+  frontend:
+    build: ./frontend/swe573-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
+    networks:
+      - backend
+    env_file:
+      - ./frontend/swe573-app/.env
 
 networks:
   backend:
